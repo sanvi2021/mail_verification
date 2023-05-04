@@ -7,10 +7,14 @@ class AccountMiddleware:
     def  __init__(self,get_response):
         self.get_response = get_response
          # logic to check if user is logged, then fetch the account details from db
-        
-        initial_balance = Account_Balance.objects.filter(id =1).values()
-        balance = initial_balance[0].get('initial_balance')
-        self.balance = balance
+        result = Account_Balance.objects.all()
+        if len(result) == 0:
+             Account_Balance.objects.create(initial_balance = 20)
+        else:
+             
+            initial_balance = Account_Balance.objects.filter(id =1).values()
+            balance = initial_balance[0].get('initial_balance')
+            self.balance = balance
 
     def __call__(self,request):
         print("before call")

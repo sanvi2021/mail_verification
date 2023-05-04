@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'corsheaders',
+    # 'authentication',
+    'freeapi',
 ]
 
 MIDDLEWARE = [

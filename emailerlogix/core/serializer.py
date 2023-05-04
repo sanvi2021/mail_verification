@@ -15,3 +15,11 @@ class CSVUploadSerializer(serializers.Serializer):
 class SinglefieldSerializer(serializers.Serializer):
     email = serializers.EmailField(min_length=None, allow_blank=False)
 
+class DomainRecordSerializer(serializers.Serializer):
+    domain_name = serializers.CharField(max_length=None, min_length=None, allow_blank=False, trim_whitespace=True)
+    
+    def validate_domain_name(self,value):
+        if not value.endswith('.com'):
+            raise ValidationError('Invalid url. Please upload correct Url.')
+        return value
+    
