@@ -31,18 +31,19 @@ class FileProcessing(APIView):
     def get(self, request):
         column_name = request.data["email_field"]
         file_name = request.data["file_name"]
+        print(column_name,file_name)
         start = time.time()
         file = default_storage.open(file_name)
         counter = 0
-        
-        for chunk in pd.read_csv(file,chunksize=10, usecols= [column_name]):
-            publish_bulk(chunk.to_json())        
-            counter +=1
-            print(counter,"---------chunk here------")
-            resp = consume_email()
-            print("chunks processed", counter)
-          
-        return Response({"total execution time":time.time()-start, "message": resp},status= status.HTTP_200_OK)
+        df = pd.read_csv(file)
+        # chunk_size = len(df)//2
+        # chunk1 = df[column_name].iloc[:chunk_size]
+        # chunk2 = df[column_name].iloc[chunk_size:]
+        publish_bulk(df[column_name].to_json())
+        print("file send to queue")
+        a = consume_email()
+        print(a,'consumed data')          
+        return Response({"total execution time":time.time()-start, "message": a},status= status.HTTP_200_OK)
 
 class SingleFileProcessing(APIView):
     serializer_class = SinglefieldSerializer

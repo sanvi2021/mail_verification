@@ -1,6 +1,7 @@
 import pika
 import requests
 import json
+from threading import Thread
 
 def consume_single_email():
     # Define a callback function to handle incoming messages
@@ -14,8 +15,9 @@ def consume_single_email():
         print("Received message: %r" % body)
     # acknowledge the receipt of the message
         # ch.basic_ack(delivery_tag=method.delivery_tag)
-        email_id = body.decode()
-        endpoint_url = f'http://127.0.0.1:8080/logix/{email_id}'
+        email_id = body.decode('utf-8')
+        print(email_id,'--------------------------------')
+        endpoint_url = f'http://178.18.240.183:8080/logix/{email_id}'
         response = requests.get(endpoint_url)
         result.append(response.json())
         connection.close() 
@@ -36,23 +38,29 @@ def consume_email():
     
     # Declare the queue to consume from
     channel.queue_declare(queue='bulk_email')
+    print("inside consumer ---herh---------")
     result = []
     def callback(ch, method, properties, body):
+        # trying for worker code 
+        print(" [x] Received %r" % body.decode())
+
+        # code ends
         dict = json.loads(body)
-        email_id = dict.get('email')
-        b = [c for c in email_id.values()]
-        for i in b:
-            endpoint_url = 'http://178.18.240.183:8080/logix/'+i
-            try:
-
-                response = requests.get(endpoint_url)
-                result.append(response.json())
-            except Exception as e:
-                print(e)
-
-        connection.close()
-            
-        return result
+        email_id = list(dict.values())
+        chunksize = 2
+        emails = email_id[0:10]
+        emails2 = email_id[11:21]
+        print(emails,'==========================',len(emails))
+        # emails2 = email_id[51:]
+        res1 = []
+        for email in emails:
+            thread = CustomThread(email)
+            thread.start()
+            thread.join()
+            reply = thread.result
+            res1.append(reply)   
+        connection.close()   
+        return result.append(res1)
 
     # Start consuming messages from the queue
     try:
@@ -61,45 +69,19 @@ def consume_email():
         return result
     except Exception as e:
         return e
-
-def consume_email_2():
-    # Define a callback function to handle incoming messages
     
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
+class CustomThread(Thread):
+    def __init__(self,email):
+        self.email = email
+        self.result = None
+        Thread.__init__(self)
+        
     
-    # Declare the queue to consume from
-    channel.queue_declare(queue='bulk_email')
-    result = []
-    def callback(ch, method, properties, body):
-        dict = json.loads(body)
-        email_id = dict.get('email')
-        b = [c for c in email_id.values()]
-        for i in b:
-            endpoint_url = 'http://178.18.240.183:8081/logix/'+i
-            try:
-
-                response = requests.get(endpoint_url)
-                result.append(response.json())
-            except Exception as e:
-                print(e)
-
-        connection.close()
-            
-        return result
-
-    # Start consuming messages from the queue
-    try:
-        channel.basic_consume(queue='bulk_email', on_message_callback=callback, auto_ack=True)
-        channel.start_consuming()
-        return result
-    except Exception as e:
-        return e
-
-
-def result_publish(processed_data):
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
-    channel.queue_declare(queue='processed_email') 
-    channel.basic_publish(exchange='', routing_key='processed_email', body=processed_data)
-    connection.close()
+    def run(self):
+        endpoint_url = 'http://178.18.240.183:8080/logix/'+self.email
+        try:
+            response = requests.get(endpoint_url)
+            self.result = response.json()
+            return self.result
+        except Exception as e:
+            print(e)
